@@ -42,25 +42,24 @@ class NavGrid {
         const x = this.originX + (cx + 0.5) * CELL2;
         const z = this.originZ + (cz + 0.5) * CELL2;
         this.world.query(x - AGENT_RADIUS, z - AGENT_RADIUS, x + AGENT_RADIUS, z + AGENT_RADIUS, cand);
-        let floorY = -Infinity;
-        for (const i of cand) {
-          const bx = boxes[i];
-          if (x >= bx.min[0] && x <= bx.max[0] && z >= bx.min[2] && z <= bx.max[2] && bx.max[1] <= MAX_FLOOR && bx.max[1] > floorY) {
-            floorY = bx.max[1];
-          }
-        }
-        if (floorY === -Infinity)
-          continue;
-        let blocked = false;
-        for (const i of cand) {
-          const bx = boxes[i];
-          if (bx.min[0] < x + AGENT_RADIUS && bx.max[0] > x - AGENT_RADIUS && bx.min[2] < z + AGENT_RADIUS && bx.max[2] > z - AGENT_RADIUS && bx.max[1] > floorY + STEP && bx.min[1] < floorY + HEADROOM) {
-            blocked = true;
+        const surfaces = cand.map(i => boxes[i]).filter(bx =>
+          bx.navFloor !== false && x >= bx.min[0] && x <= bx.max[0] &&
+          z >= bx.min[2] && z <= bx.max[2] && bx.max[1] <= MAX_FLOOR
+        ).map(bx => bx.max[1]).sort((a, b) => a - b);
+        // Try the interior floor before overhead lintels. Solid platforms block
+        // lower candidates, while authored ceiling tops are never AI floors.
+        for (const floorY of surfaces) {
+          const blocked = cand.some(i => {
+            const bx = boxes[i];
+            return bx.min[0] < x + AGENT_RADIUS && bx.max[0] > x - AGENT_RADIUS &&
+              bx.min[2] < z + AGENT_RADIUS && bx.max[2] > z - AGENT_RADIUS &&
+              bx.max[1] > floorY + STEP && bx.min[1] < floorY + HEADROOM;
+          });
+          if (!blocked) {
+            this.floor[cz * this.w + cx] = floorY;
             break;
           }
         }
-        if (!blocked)
-          this.floor[cz * this.w + cx] = floorY;
       }
     }
   }

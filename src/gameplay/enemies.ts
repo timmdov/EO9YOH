@@ -273,7 +273,8 @@ function applyGravityAndMove(world: World, e: Enemy, vx: number, vz: number, dt:
     e.vel[1] = 0;
 }
 function nextWaypoint(world: World, e: Enemy, target: number[], dt: number) {
-  const straight = distXZ(target, e.pos) < 2.2 && Math.abs(target[1] - e.pos[1]) < 0.5;
+  const directClear = world.static.characterLineClear(e.pos, target, ENEMY_RADIUS, ENEMY_HEIGHT);
+  const straight = distXZ(target, e.pos) < 2.2 && Math.abs(target[1] - e.pos[1]) < 0.5 && directClear;
   if (straight) {
     e.path = null;
     return target;
@@ -287,7 +288,7 @@ function nextWaypoint(world: World, e: Enemy, target: number[], dt: number) {
   }
   const path = e.path;
   if (!path || path.length === 0)
-    return target;
+    return directClear ? target : e.pos;
   while (e.pathIndex < path.length - 1 && distXZ(path[e.pathIndex], e.pos) < 0.4)
     e.pathIndex++;
   return path[e.pathIndex];

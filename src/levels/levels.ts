@@ -11,7 +11,10 @@ class LevelBuilder {
     return this.box(x0, y - 0.4, z0, x1, y, z1, mat);
   }
   ceiling(x0: number, z0: number, x1: number, z1: number, y: number, mat: string = "dark") {
-    return this.box(x0, y, z0, x1, y + 0.3, z1, mat);
+    this.box(x0, y, z0, x1, y + 0.3, z1, mat);
+    // Ceilings remain solid, but their exterior tops are not AI floors.
+    this.boxes[this.boxes.length - 1].navFloor = false;
+    return this;
   }
   wallX(x0: number, x1: number, z: number, h: number, t: number = 0.3, mat: string = "wall", y0: number = 0) {
     return this.box(x0, y0, z - t / 2, x1, y0 + h, z + t / 2, mat);

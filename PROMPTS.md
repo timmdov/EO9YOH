@@ -92,3 +92,43 @@ Requirements:
 - Minimize token usage and inspect only relevant source files.
 
 At completion, provide a concise summary of fixes, test results and a consolidated manual verification checklist.
+
+
+## Part 3.2 — Physics and enemy navigation
+
+Begin Part 3.2 — Physics and enemy navigation.
+
+
+
+Read the relevant entries in BUGS.md and complete the following fixes in one batch:
+
+- BUG-005: Invalid character spawn positions.
+- BUG-004: Navigation grid selects ceiling tops instead of accessible floors.
+- BUG-011: Nearby AI targets disable routing despite obstacles.
+
+For each bug:
+
+- Confirm the documented root cause.
+- Implement the smallest robust fix.
+- Add focused regression tests where feasible.
+- Verify the fix independently.
+- Update BUGS.md with reproduction steps, root cause, implementation and actual verification results.
+
+Constraints:
+
+- Preserve original level design, gameplay mechanics, enemy difficulty and balancing.
+- Do not simplify levels or remove obstacles to make navigation easier.
+- Do not weaken enemies.
+- Preserve the Batch 1 fixes.
+- Do not fix unrelated bugs.
+- Do not repeat the comprehensive audit.
+- Complete all three fixes without stopping between them.
+- Run regression tests, npm run typecheck and npm run build.
+- Append this prompt to PROMPTS.md.
+- Do not commit automatically or fabricate manual browser verification.
+
+Optimize token usage by inspecting only relevant files.
+
+
+
+Provide a concise completion report and manual gameplay verification checklist.

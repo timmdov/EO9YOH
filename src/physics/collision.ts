@@ -106,6 +106,53 @@ class StaticWorld {
     }
     return false;
   }
+  characterLineClear(from: number[], to: number[], r: number, h: number) {
+    const start = [from[0], from[1] + 1e-3, from[2]];
+    const delta = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+    // Sweep the character volume, rather than a single eye-height ray.
+    const candidates = this.query(Math.min(from[0], to[0]) - r, Math.min(from[2], to[2]) - r,
+      Math.max(from[0], to[0]) + r, Math.max(from[2], to[2]) + r, this.scratch);
+    for (const i of candidates) {
+      const b = this.boxes[i];
+      const expanded = {
+        min: [b.min[0] - r, b.min[1] - h, b.min[2] - r],
+        max: [b.max[0] + r, b.max[1], b.max[2] + r]
+      };
+      if (rayBox(start, delta, expanded, 1) !== null)
+        return false;
+    }
+    return true;
+  }
+  characterSpawn(requested: number[], r: number, h: number) {
+    const clear = (x: number, z: number) => !this.overlapsAabb(
+      [x - r, requested[1], z - r], [x + r, requested[1] + h, z + r]);
+    if (clear(requested[0], requested[2]))
+      return [...requested];
+    // Search obstacle boundaries for the nearest free footprint on the same floor.
+    // Keep already-valid spawns, level geometry and authored vertical placement.
+    const xs = [requested[0]], zs = [requested[2]];
+    for (const b of this.boxes) {
+      if (b.max[1] <= requested[1] || b.min[1] >= requested[1] + h)
+        continue;
+      xs.push(b.min[0] - r - 1e-3, b.max[0] + r + 1e-3);
+      zs.push(b.min[2] - r - 1e-3, b.max[2] + r + 1e-3);
+    }
+    let best: number[] | null = null;
+    let bestDistance = Infinity;
+    for (const x of xs) for (const z of zs) {
+      const distance = Math.hypot(x - requested[0], z - requested[2]);
+      if (distance > 3 || distance >= bestDistance || !clear(x, z))
+        continue;
+      const support = this.raycast([x, requested[1] + 1e-3, z], [0, -1, 0], 0.11);
+      if (!support)
+        continue;
+      best = [x, requested[1], z];
+      bestDistance = distance;
+    }
+    if (!best)
+      throw new Error(`No clear character spawn near ${requested.join(",")}`);
+    return best;
+  }
   moveCharacter(pos: number[], delta: number[], r: number, h: number, stepHeight: number, canStep: boolean) {
     const res = { grounded: false, hitWall: false, hitCeiling: false };
     const maxD = Math.max(Math.abs(delta[0]), Math.abs(delta[1]), Math.abs(delta[2]));

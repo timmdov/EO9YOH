@@ -3,7 +3,7 @@ import { Rng } from "../core/random";
 import { segmentCapsule,segmentSphere,StaticWorld } from "../physics/collision";
 import { NavGrid } from "../physics/navigation";
 import type { Enemy,Frame,Item,Level,Player,Projectile,Prop,SharedStatic,Spawn,WorldEvent } from "../types";
-import { BODY_A,BODY_B,BODY_RADIUS,createEnemy,enemyMuzzle,HEAD_OFFSET,HEAD_RADIUS,savePrev,updateEnemy } from "./enemies";
+import { ENEMY_RADIUS, ENEMY_HEIGHT, BODY_A,BODY_B,BODY_RADIUS,createEnemy,enemyMuzzle,HEAD_OFFSET,HEAD_RADIUS,savePrev,updateEnemy } from "./enemies";
 import { BULLET_LIFE,BULLET_RADIUS,BULLET_SPEED,FRAGILE,isGun,isWeapon,ITEM_RADIUS,newItem,WEAPONS } from "./weapons";
 var EYE_HEIGHT = 1.6;
 var PLAYER_RADIUS = 0.3;
@@ -58,13 +58,13 @@ class World {
       this.static = sharedStatic.static;
       this.nav = sharedStatic.nav;
     } else {
-      const boxes = def.boxes.filter((b) => b.collide).map((b) => ({ min: [...b.min], max: [...b.max] }));
+      const boxes = def.boxes.filter((b) => b.collide).map((b) => ({ min: [...b.min], max: [...b.max], navFloor: b.navFloor }));
       this.static = new StaticWorld(boxes);
       this.nav = new NavGrid(this.static);
     }
     const p = def.player;
     this.player = {
-      pos: [p.pos[0], p.pos[1], p.pos[2]],
+      pos: this.static.characterSpawn(p.pos, PLAYER_RADIUS, PLAYER_HEIGHT),
       vel: v3(),
       yaw: p.yaw,
       pitch: 0,
@@ -571,7 +571,8 @@ class World {
     while (this.spawnQueue.length > 0 && this.enemies.length < max) {
       const q = this.spawnQueue.shift()!;
       const s = q.spawn;
-      const pos = s.pos.length === 2 ? [s.pos[0], 0.05, s.pos[1]] : [s.pos[0], s.pos[1] + 0.05, s.pos[2]];
+      const requested = s.pos.length === 2 ? [s.pos[0], 0.05, s.pos[1]] : [s.pos[0], s.pos[1] + 0.05, s.pos[2]];
+      const pos = this.static.characterSpawn(requested, ENEMY_RADIUS, ENEMY_HEIGHT);
       const yaw = s.yaw ?? Math.atan2(-(this.player.pos[0] - pos[0]), -(this.player.pos[2] - pos[2]));
       const e = createEnemy(this.nextId++, s.kind, pos, yaw, s.weapon, !!s.idle, this.rng.next());
       if (initial)

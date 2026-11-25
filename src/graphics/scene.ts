@@ -4,7 +4,7 @@ import type { Level } from "../types";
 import { MeshBuilder,THEMES } from "./geometry";
 function buildLevelMesh(device: GPUDevice, def: Level) {
   const scene = buildLevelScene(device, def);
-  const boxes = def.boxes.filter((b) => b.collide).map((b) => ({ min: [b.min[0], b.min[1], b.min[2]], max: [b.max[0], b.max[1], b.max[2]] }));
+  const boxes = def.boxes.filter((b) => b.collide).map((b) => ({ min: [b.min[0], b.min[1], b.min[2]], max: [b.max[0], b.max[1], b.max[2]], navFloor: b.navFloor }));
   const st = new StaticWorld(boxes);
   const nav = new NavGrid(st);
   return { scene, shared: { static: st, nav } };

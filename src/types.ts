@@ -9,7 +9,7 @@ export type Matrix = ReturnType<typeof mat4.create>;
 export type ItemKind = 'pistol'|'scatter'|'carbine'|'blade'|'bottle'|'brick'|'mug';
 export type EnemyKind = 'walker'|'rusher'|'marksman';
 export interface Item { kind: ItemKind; ammo: number }
-export interface Box { min: number[]; max: number[]; mat?: string; collide?: boolean }
+export interface Box { navFloor?: boolean; min: number[]; max: number[]; mat?: string; collide?: boolean }
 export interface Spawn { kind: EnemyKind; pos: number[]; yaw?: number; weapon?: ItemKind|null; idle?: boolean }
 export interface Wave { when: {type: 'start'|'remaining'|'zone'|'time'; count?: number; rect?: number[]; seconds?: number}; delay?: number; spawns: Spawn[] }
 export interface Level {id:string; name:string; act:number; theme:string; words:string[]; seed:number; player:{pos:number[];yaw:number;item?:ItemKind};props:{kind:ItemKind;pos:number[]}[];waves:Wave[];boxes:Box[];maxActive?:number;exit?:{rect:number[];requiresClear:boolean}}

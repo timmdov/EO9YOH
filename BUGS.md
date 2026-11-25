@@ -1,6 +1,6 @@
 # STILLFRAME — static bug audit
 
-The original audit recorded all findings as unresolved. **Part 3 Batch 1: BUG-001, BUG-002 and BUG-003 are fixed and automated regression checks pass. BUG-002 first-level entry was manually verified by the student. BUG-003 was browser-confirmed before fixing; post-fix manual checks for BUG-001 and BUG-003 remain pending. All findings outside this batch remain unresolved.** Original HTML locations below refer to the pre-migration baseline; see the migration location map for current modules.
+The original audit recorded all findings as unresolved. **Part 3 Batch 1: BUG-001, BUG-002 and BUG-003 are fixed and automated regression checks pass. BUG-002 first-level entry was manually verified by the student. BUG-003 was browser-confirmed before fixing; post-fix manual checks for BUG-001 and BUG-003 remain pending. Part 3.2: BUG-004, BUG-005 and BUG-011 are also implemented and automated-regression verified; manual browser verification is pending. All other findings remain unresolved.** Original HTML locations below refer to the pre-migration baseline; see the migration location map for current modules.
 
 ## Method, status and scope
 
@@ -69,26 +69,25 @@ This is not proof that unlisted code is bug-free. Architectural concerns such as
 - **Browser evidence:** the student confirmed first-level entry after BUG-002 and inverted mouse controls before BUG-003 was fixed. No new browser verification was performed for this batch.
 - **Consolidated manual checklist — pending:** open development (`npm run dev`, `http://localhost:5173/`) and production preview (`npm run preview`, `http://localhost:4173/`) in Chrome. With fresh progress, check 1-1 is available and later levels are locked, then enter 1-1. Test mouse right/left and vertical look with Invert Y off/on. With no F2/F3 override, use F4 to compare stationary time scale (near 0.015 after settling), movement and stopping; check looking, jumping and acting still advance time. Check controller horizontal look if available. Report failures and Console errors; do not interpret these checks as confirmation that other audited bugs are fixed.
 
-## BUG-004 — Navigation bakes ceiling tops instead of the walkable floor below
+## BUG-004 — Navigation bakes ceiling tops instead of accessible floors
 
-- **Severity / verification:** High; **source-confirmed**.
-- **Location:** `index.html`, `NavGrid.bake()` 4340–4366, `MAX_FLOOR` 4309, `nearestWalkable()` 4388–4418; CARRIAGE ceiling 2674; `LevelBuilder.ceiling()` 2520–2522.
-- **Evidence:** baking chooses the highest `bx.max[1] <= 3.3` at each X/Z. The CARRIAGE ceiling occupies Y 2.6–2.9, so its top replaces floor Y 0. Only one height is stored per cell.
-- **Expected:** enemies inside a covered carriage navigate its accessible floor, not the roof.
-- **Predicted:** navigation represents roof heights, loses valid interior routes and may return inaccessible waypoints or fall back to direct movement. The source-derived grid at CARRIAGE's player position contains approximately 2.9 rather than 0; ELEVATOR's player cell has the same issue.
-- **Root cause:** choosing the highest surface globally ignores which vertical layer is reachable from the agent. Headroom checking above that surface cannot restore the discarded interior floor.
-- **Suggested reproduction:** construct the original CARRIAGE collision boxes and `NavGrid`; inspect `floor[cellOf(0,0)]`. Later observe enemies trying to route through the carriage doors.
+- **Severity / status:** High; source-confirmed. **Fixed in Part 3.2; automated verification passed; manual browser verification pending.**
+- **Location:** `src/physics/navigation.ts`, `NavGrid.bake()`; `src/levels/levels.ts`, `LevelBuilder.ceiling()`; metadata propagation in `src/gameplay/world.ts` and `src/graphics/scene.ts`; `Box.navFloor` in `src/types.ts`. Original evidence: `index.html` 4340–4366 and 2674.
+- **Root cause / reproduction:** the grid chose the highest box top below MAX_FLOOR, including ceilings and doorway lintels. Before fixing, a clear interior CARRIAGE test cell reported approximately 2.9 instead of floor Y=0. Selecting only the lowest surface was insufficient where furniture blocked the floor, and excluding only ceilings still selected lintel tops at doors.
+- **Expected:** navigation follows accessible interior floors, retains solid raised platforms/stairs, and respects headroom and obstacles.
+- **Implementation:** authored ceiling boxes carry `navFloor: false` but still collide and render normally. Both collision-data construction paths retain this metadata. Baking tries remaining supported surface heights from low to high and accepts the first passing the existing agent-radius, headroom and step-clearance checks. A solid platform blocks lower candidates so its upper surface remains navigable. MAX_FLOOR, grid resolution, enemy speed and step limits are unchanged; this remains a single-height-per-cell navigation grid.
+- **Actual verification:** tests confirm interior floor Y=0 in CARRIAGE/ELEVATOR, a floor-level path through an existing CARRIAGE doorway, preserved raised-platform height and ESCALATOR stair routing, and metadata retention through the production cached-scene path (GPU buffer allocation stubbed). These are automated checks, not GPU/browser gameplay verification.
+- **Manual check — pending:** play CARRIAGE and ELEVATOR; observe pursuit inside covered areas and through existing doors. In ESCALATOR, verify enemies still use the stairs and upper platform. Record any persistent blockage separately.
 
 ## BUG-005 — Level spawn positions intersect solid geometry
 
-- **Severity / verification:** High; **source-confirmed**.
-- **Location:** `index.html`, CARRIAGE definition 2648–2688; `World.flushSpawnQueue()` 5760–5773; `PlayerController.reset()` 6082–6090; `StaticWorld.moveAxis()` 4128–4136.
-- **Evidence:** the player spawns at `[0,0,0]`, and the pillar loop creates a solid pillar there spanning X/Z ±0.04 and Y 0–2.6. Initial enemies at `[0,-12]` and `[0,12]` coincide with other pillars; the later `[5.5,0]` spawn is inside the crate at 2688. Spawn/reset code does not validate these placements.
-- **Expected:** characters begin in free space at the intended floor height.
-- **Predicted:** penetration resolution can push characters sideways or onto obstacle tops. In an isolated call using the actual carriage boxes, a small downward movement from `[0,0,0]` changes Y to 2.6 and reports grounded. This is not a browser observation.
-- **Root cause:** level coordinates conflict with collision volumes; downward penetration is interpreted as landing on the box top.
-- **Additional affected data:** character-volume overlap checks also find enemy spawns intersecting obstacles in TURNSTILES (2691–2731), ELEVATOR (2878–2933), CUBICLES (2935–2977), SKYLIGHT (3149–3190), CROSSING (3192–3230), HELIPAD (3232–3293) and SPIRE (3295–3385). For example, HELIPAD's four initial `[±11,±11]` walkers (3250–3253) are inside corner towers centered at `[±12,±12]` (3286–3287). Some overlaps are shallow; their individual gameplay consequences remain unobserved.
-- **Suggested reproduction:** compare spawn character AABBs with collidable level boxes, including the +0.05 spawn Y offset. Later enter CARRIAGE without moving and inspect initial player/enemy positions.
+- **Severity / status:** High; source-confirmed. **Fixed in Part 3.2; automated verification passed; manual browser verification pending.**
+- **Location:** `src/physics/collision.ts`, `StaticWorld.characterSpawn()`; `src/gameplay/world.ts`, constructor and `flushSpawnQueue()`; `src/game.ts`, `resetWorld()`. Original evidence: `index.html` 2648–2688, 5760–5773 and 4128–4136.
+- **Root cause / reproduction:** authored spawn coordinates overlapped static solids, and initialization did not validate character volumes. CARRIAGE placed its player inside a pillar; before fixing, the regression reproduced a first downward step moving the player from Y=0 to Y=2.6. Other obstructed wave spawns were already documented in the audit.
+- **Expected:** characters start clear of solids at the authored vertical level, with existing waves, weapons and enemy parameters retained.
+- **Implementation:** leave every already-clear spawn unchanged. For an obstructed spawn, deterministically choose the nearest clear footprint from obstacle-boundary candidates within 3 units, at the original Y, with floor support below it. If no supported candidate exists, fail explicitly rather than silently discarding enemies or moving them onto a roof. Apply the same placement to player and all initial/delayed enemy spawns. Reset the live player controller from the corrected world player position; replay worlds use the same deterministic constructor/queue path. Authored geometry and spawn requests are unchanged.
+- **Actual verification:** independent AABB checks cover all 15 levels' player and every wave's enemy spawns via the real constructor/queue code. Tests verify clear volumes, floor support, unchanged valid spawns and Y, bounded displacement, deterministic placement, matching previous positions and enemy counts/kinds. CARRIAGE's first downward movement now remains at floor Y=0. Cached live/replay worlds reproduce identical corrected spawns. An independent comparison against HEAD confirms all authored level geometry, spawn requests and wave definitions are unchanged (only navigation metadata was excluded from the comparison).
+- **Manual check — pending:** enter/restart CARRIAGE without moving; confirm normal floor-height view and unobstructed initial enemies. Observe subsequent waves, then TURNSTILES and HELIPAD when unlocked: enemies should spawn beside obstructing geometry rather than inside it or on its roof. No manual result is claimed.
 
 ## BUG-006 — Enemy melee can kill through solid walls
 
@@ -140,15 +139,23 @@ This is not proof that unlisted code is bug-free. Architectural concerns such as
 - **Root cause:** collision uses one trajectory and the other's endpoint rather than relative swept movement.
 - **Suggested reproduction:** inspect/evaluate the predicate with distinct shot IDs and the above positions. Later test perpendicular simultaneous shots in an unobstructed fixture.
 
-## BUG-011 — Nearby AI targets disable routing even through obstacles
+## BUG-011 — Nearby AI targets disable routing despite obstacles
 
-- **Severity / verification:** Medium; **source-confirmed**.
-- **Location:** `index.html`, `nextWaypoint()` 5096–5115; `updateEnemy()` 5036–5052.
-- **Evidence:** if horizontal distance is below 2.2 and height difference below 0.5, `e.path = null; return target;` executes without any obstruction check.
-- **Expected:** a close target behind a barrier still requires a route around it.
-- **Predicted:** an enemy repeatedly discards its route and pushes directly into a wall when the target is nearby on the opposite side; the collision system prevents movement but never changes this shortcut decision.
-- **Root cause:** proximity is incorrectly treated as proof of a traversable straight path.
-- **Suggested reproduction:** later stand near a partition with an enemy on the opposite side, below the distance threshold and with a doorway farther away; compare pursuit while farther away and while close.
+- **Severity / status:** Medium; source-confirmed. **Fixed in Part 3.2; automated verification passed; manual browser verification pending.**
+- **Location:** `src/gameplay/enemies.ts`, `nextWaypoint()`; `src/physics/collision.ts`, `StaticWorld.characterLineClear()`. Original evidence: `index.html` 5096–5115.
+- **Root cause / reproduction:** proximity (<2.2 horizontal units and <0.5 height difference) unconditionally discarded the path without checking obstacles. Before fixing, a rusher and target on opposite sides of a partition used the target directly instead of a route; the same failure occurred with a low barrier.
+- **Expected:** nearby unobstructed targets permit direct pursuit; intervening body-height geometry requires routing around it.
+- **Implementation:** add a swept character-volume clearance check against expanded collision boxes, using the existing spatial index. Proximity clears the path only if this sweep is clear. Retain the existing pathfinder/repath timing; if no route exists and the sweep is blocked, return the enemy's position rather than restore obstacle-blind direct pursuit. No speed, attack, reaction, weapon or damage parameters changed.
+- **Actual verification:** the real `nextWaypoint()` and `NavGrid` now return a route around full and low partitions; independently sampled character volumes along the full partition route remain clear. Open nearby targets still use direct pursuit. A fully blocking barrier with no route does not restore the faulty fallback. Source comparison confirms all enemy parameters/combat constants remain unchanged.
+- **Manual check — pending:** lure an enemy near the other side of a partition with an available opening; confirm it uses the opening instead of continuously pushing into the wall. Move into open nearby space and confirm direct pursuit resumes. Enemy melee-through-wall damage is separate BUG-006 and remains unresolved.
+
+## Part 3.2 automated verification
+
+- `npm test`: **19 tests passed**, including the 10 Batch 1 regressions and 9 physics/navigation tests.
+- `npm run typecheck`: passed.
+- `npm run build`: passed; **44 modules transformed**.
+- `git diff --check`: passed.
+- Independent checks: unchanged authored geometry/waves/spawn requests and enemy combat constants; independent character-volume overlap/route sampling; cache/replay placement consistency. No manual browser verification or level-clear result is claimed.
 
 ## BUG-012 — Dead enemies leave permanent gun reservations
 
