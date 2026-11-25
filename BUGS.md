@@ -1,12 +1,12 @@
 # STILLFRAME — static bug audit
 
-All findings remain **unresolved**. This audit changes documentation only. Locations refer to the current `index.html`; the increment 2.1 import replacement did not shift line numbers.
+The original audit recorded all findings as unresolved. **Part 3 Batch 1: BUG-001, BUG-002 and BUG-003 are fixed and automated regression checks pass. BUG-002 first-level entry was manually verified by the student. BUG-003 was browser-confirmed before fixing; post-fix manual checks for BUG-001 and BUG-003 remain pending. All findings outside this batch remain unresolved.** Original HTML locations below refer to the pre-migration baseline; see the migration location map for current modules.
 
 ## Method, status and scope
 
 - **Source-confirmed:** a concrete branch, data-flow contradiction or numerical counterexample establishes the defect. This does not establish its frequency or visual impact in a browser.
 - **Suspected:** the implementation raises a specific functional concern, but intended behaviour or runtime impact needs confirmation.
-- **Browser-confirmed:** requires observed browser reproduction. **No finding has this status.**
+- **Browser-confirmed:** requires observed browser reproduction. The student reported inverted horizontal mouse controls for BUG-003 during gameplay. First-level entry after the BUG-002 fix was also manually confirmed by the student; BUG-003 post-fix browser verification remains pending.
 - Severity: **High** blocks progression or substantially affects controls/combat; **Medium** affects particular interactions or presentation; **Low** is a limited visual defect. These are audit assessments, not measured user impact.
 - The student independently confirmed BUG-001 and BUG-002 in Part 1. This audit traced source and callers across the subsystems below. Isolated, read-only Node calculations using extracted source functions additionally checked level geometry/navigation, the capsule intersection example and the crossing-bullet example. No gameplay, GPU rendering or manual browser verification was performed.
 - Suggested gameplay reproductions below are **pending**, not completed steps. BUG-002 blocks normal initial progression; level-dependent checks require a later authorized repair or a controlled test fixture. This audit did not bypass progression or alter saves.
@@ -30,33 +30,44 @@ This is not proof that unlisted code is bug-free. Architectural concerns such as
 
 ## BUG-001 — Reversed movement arguments prevent intended slow motion
 
-- **Severity / verification:** High; **source-confirmed**, independently checked by the student.
-- **Location:** `index.html`, `Game.frame()` line 6998; `TimeScaleDriver.update()` 6177–6187; `WALK_SPEED` 6064.
-- **Evidence:** the signature expects `(realDt, planarSpeed, maxSpeed, ...)`, but the caller supplies `(dt, WALK_SPEED, this.player.planarSpeed, ...)`. The movement contribution is `clamp(planarSpeed / maxSpeed, 0, 1)`.
-- **Expected:** movement contributes current speed divided by maximum speed; stationary, grounded inactivity approaches the minimum scale.
-- **Predicted:** with current speed 0, `4 / 0` becomes Infinity and clamps to 1. Speeds up to 4 also request full speed; smoothing approaches that target rather than slow motion.
-- **Root cause:** reversed numeric arguments. The smoothed value does not become 1 instantly, and debug overrides remain separate.
-- **Suggested reproduction:** compare the call and signature; substitute speed 0. Later, stand still without looking or acting, leave F2/F3 overrides off, and compare F4 time scale and enemy motion with movement.
+- **Severity / verification:** High; **source-confirmed**, independently checked by the student. **Fixed in Part 3 Batch 1; automated regression verified; manual browser verification pending.**
+- **Location:** `src/game.ts`, `Game.frame()` line 329; `src/core/time-scale.ts`, `TimeScaleDriver.update()` lines 18–30. Original evidence: `index.html` 6998 and 6177–6187.
+- **Root cause / original evidence:** the signature expects `(realDt, planarSpeed, maxSpeed, ...)`, but the caller supplied `(dt, WALK_SPEED, this.player.planarSpeed, ...)`. The movement contribution `clamp(planarSpeed / maxSpeed, 0, 1)` therefore used the reciprocal ratio. At rest, `4 / 0` became Infinity, clamping to 1.
+- **Expected:** current speed divided by maximum speed determines the movement contribution. Grounded inactivity approaches the intentional 0.015 minimum; half/full walking speed approaches 0.5/1, with smoothing and other activity contributions retained.
+- **Reproduction confirmed before fixing:** tests executing the actual `Game.frame()` method with the real driver and stubbed external boundaries showed stationary and half-speed inputs approaching 1. All four new time-scale tests failed before the fix. This is automated reproduction, not browser gameplay.
+- **Fix:** swapped only the second and third call arguments to `this.driver.update(dt, this.player.planarSpeed, WALK_SPEED, ...)`. The driver, minimum scale, smoothing constants, look contribution, airborne floor, action kick, burst handling and debug overrides were not changed.
+- **Automated verification:** four focused tests in `tests/time-scaling.test.cjs` pass: inactivity, proportional walking speeds, smooth slowdown after stopping, and preserved look/jump/burst/action contributions. Batch checks pass: all 10 tests, `npm run typecheck`, `npm run build` (44 modules transformed), and `git diff --check`.
+- **Manual reproduction / post-fix check — pending:** in 1-1, leave F2/F3 overrides off and use F4 to display time scale. While grounded, stop moving, looking and acting; allow smoothing/action kick to settle. Expect time scale near 0.015, not a complete freeze. Move and stop again: enemy/projectile motion should accelerate then slow smoothly. Looking, jumping and successful actions should still advance time. Report the observed values and behaviour.
 
 ## BUG-002 — First level fails the unlock condition
 
-- **Severity / verification:** High; **source-confirmed**, independently checked by the student.
-- **Location:** `index.html`, `Ui.isUnlocked()` 3717–3721; `Game.startLevel()` 6837–6845.
-- **Evidence:** `if (index < 0) return true;` is followed by `const prev = this.levels[index - 1]` and `return !!prev && !!this.save.levels[prev.id]?.cleared`. `startLevel()` returns when this is false.
-- **Expected:** index 0 is available without a previous completion.
-- **Predicted:** index 0 reads `levels[-1]`, receives undefined and is rejected before loading or intro. Fresh-player progression is blocked.
-- **Root cause:** incorrect boundary comparison for the first level.
-- **Suggested reproduction:** substitute index 0 into the predicate. Later, open a fresh Chrome profile, wait for the title screen and click PLAY; record whether level 1-1 starts.
+- **Severity / verification:** High; **source-confirmed**, independently checked by the student. **Fixed in Part 3.1; automated regression verified; first-level entry manually verified by the student.**
+- **Location:** `src/ui/ui.ts`, `Ui.isUnlocked()` line 327; caller `src/game.ts`, `Game.startLevel()` lines 168–176. Original evidence: `index.html` 3717–3721 and 6837–6845.
+- **Root cause / original evidence:** `if (index < 0) return true;` excluded index 0 from the unconditional first-level branch. It then read `this.levels[index - 1]`; `levels[-1]` is undefined, so the predicate returned false and `startLevel()` returned before loading the level or beginning its intro.
+- **Expected:** index 0 is available without previous completion; later levels require their immediate predecessor to be cleared.
+- **Reproduction confirmed before fixing:** the regression test called the actual `Ui.prototype.isUnlocked` with index 0 and an empty progress record. It returned false and failed the expected-true assertion. The later-level progression test passed. This is an automated source-level reproduction, not browser gameplay.
+- **Fix:** changed only the boundary comparison from `index < 0` to `index <= 0`. The existing previous-level completion check and all gameplay balancing remain unchanged.
+- **Automated verification:** `npm test` passes both tests in `tests/ui-unlock.test.cjs`: first-level entry with a fresh save, and later-level gating with missing, false and true predecessor completion records. `npm run build` passes, including strict TypeScript checking and production bundling (44 modules transformed). `git diff --check` passes.
+- **Manual gameplay verification — passed for level entry:** the student reported: “The first level now starts successfully.” This confirms entry after the fix. Separate checks of later-level gating, pause behaviour and Console output were not reported; later-level gating has automated coverage.
+
 
 ## BUG-003 — Horizontal look direction is reversed
 
-- **Severity / verification:** High; **source-confirmed**.
-- **Location:** `index.html`, `PlayerController.look()` 6092–6099; `Camera.forward()` 1857–1860; `Input.pollGamepad()` 2036–2039.
-- **Evidence:** `this.yaw += input.mouseDx * s.sensitivity`, while camera forward is `[-sin(yaw)*cos(pitch), sin(pitch), -cos(yaw)*cos(pitch)]`. Positive right-stick X also increases `mouseDx`.
-- **Expected:** moving the mouse/right stick right turns the view right with the default controls.
-- **Predicted:** starting at yaw 0, a positive horizontal input turns toward negative X (left), while local right is positive X. Vertical inversion is separately configurable; there is no horizontal inversion setting.
-- **Root cause:** input yaw sign contradicts the camera's yaw convention.
-- **Suggested reproduction:** evaluate forward at yaw 0 and a small positive yaw; later compare a rightward mouse movement with the direction of view rotation.
+- **Severity / verification:** High; **browser-confirmed** by the student before fixing: inverted horizontal mouse controls were observed during manual gameplay testing. **Fix implemented and automated regression verified; post-fix manual verification pending.** Controller behaviour has not been browser-verified.
+- **Location:** `src/gameplay/player.ts`, `PlayerController.look()` lines 33–40; `src/graphics/camera.ts`, `Camera.forward()` lines 23–26; controller input is mapped in `src/core/input.ts`, `Input.pollGamepad()`. Original evidence: `index.html` 6092–6099, 1857–1860 and 2036–2039.
+- **Root cause / original evidence:** `this.yaw += input.mouseDx * s.sensitivity` contradicted the camera convention `[-sin(yaw)*cos(pitch), sin(pitch), -cos(yaw)*cos(pitch)]`. At yaw 0, a positive horizontal input turned toward negative X (left), while camera right is positive X. Positive right-stick X enters the same horizontal look path.
+- **Expected:** rightward mouse input turns right and leftward input turns left, retaining sensitivity magnitude and the existing vertical controls.
+- **Reproduction:** the student confirmed the inversion in the first level. Before the fix, focused tests using the actual `PlayerController.look()` and `Camera.forward()/right()` failed for both horizontal directions; a corrected-sign assertion also failed. The vertical clamp/zero-input test already passed.
+- **Fix:** changed only `this.yaw += ...` to `this.yaw -= ...`. Vertical inversion, sensitivity magnitude, pitch limits, look-speed calculation, movement, time scaling and balancing are unchanged. The shared controller look path receives the same horizontal sign correction without remapping buttons or axes.
+- **Automated verification:** `npm test` passes all 10 batch tests, including 4 look tests covering both directions from multiple initial orientations, sensitivity magnitude, vertical inversion, pitch limits, look speed and zero input. `npm run build` passes strict TypeScript checking and production bundling (44 modules transformed). `git diff --check` passes.
+- **Manual gameplay verification — pending:** run `npm run dev`, open `http://localhost:5173/` in Chrome and enter 1-1 PLATFORM. With mouse capture active, move the mouse right, then left: the view should follow each direction. Check normal up/down look and the existing Invert Y option; horizontal direction should remain correct with either option. If a controller is available, check right-stick horizontal look as well and report it separately. Also perform the BUG-001 slow-motion check as part of the consolidated batch verification. No post-fix mouse/controller browser result has been reported yet.
+
+## Part 3 Batch 1 verification summary
+
+- **Scope:** retained and inspected BUG-002's `<= 0` boundary and BUG-003's yaw subtraction; corrected BUG-001's call argument order. No fixes outside these three bugs.
+- **Automated:** `npm test` passes 10 tests; `npm run typecheck` passes; `npm run build` passes with 44 modules transformed; `git diff --check` passes. Unlock tests confirm initial availability and predecessor gating; look tests confirm both horizontal directions, sensitivity, vertical inversion/limits and zero input; time tests exercise the production caller and driver together.
+- **Browser evidence:** the student confirmed first-level entry after BUG-002 and inverted mouse controls before BUG-003 was fixed. No new browser verification was performed for this batch.
+- **Consolidated manual checklist — pending:** open development (`npm run dev`, `http://localhost:5173/`) and production preview (`npm run preview`, `http://localhost:4173/`) in Chrome. With fresh progress, check 1-1 is available and later levels are locked, then enter 1-1. Test mouse right/left and vertical look with Invert Y off/on. With no F2/F3 override, use F4 to compare stationary time scale (near 0.015 after settling), movement and stopping; check looking, jumping and acting still advance time. Check controller horizontal look if available. Report failures and Console errors; do not interpret these checks as confirmation that other audited bugs are fixed.
 
 ## BUG-004 — Navigation bakes ceiling tops instead of the walkable floor below
 

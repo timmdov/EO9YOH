@@ -325,7 +325,7 @@ class Ui {
     });
   }
   isUnlocked(index: number) {
-    if (index < 0)
+    if (index <= 0)
       return true;
     const prev = this.levels[index - 1];
     return !!prev && !!this.save.levels[prev.id]?.cleared;

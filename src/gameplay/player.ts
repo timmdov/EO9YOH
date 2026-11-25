@@ -33,7 +33,7 @@ class PlayerController {
   look(input: Input, dt: number, s: {sensitivity:number;invertY:boolean}) {
     this.mouseDx = input.mouseDx;
     this.mouseDy = input.mouseDy;
-    this.yaw += input.mouseDx * s.sensitivity;
+    this.yaw -= input.mouseDx * s.sensitivity;
     this.pitch -= input.mouseDy * s.sensitivity * (s.invertY ? -1 : 1);
     this.pitch = clamp(this.pitch, -MAX_PITCH2, MAX_PITCH2);
     this.yaw %= Math.PI * 2;
