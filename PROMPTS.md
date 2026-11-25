@@ -132,3 +132,40 @@ Optimize token usage by inspecting only relevant files.
 
 
 Provide a concise completion report and manual gameplay verification checklist.
+
+
+## Part 4 — GitHub Pages deployment
+
+Begin Part 4 of Lab 05 — GitHub Pages deployment.
+
+
+
+Prepare the existing modular TypeScript application for automated deployment.
+
+
+
+Requirements:
+
+- Configure GitHub Actions to build and deploy the application to GitHub Pages automatically on every push to main.
+- Create the necessary workflow under .github/workflows/.
+- Install dependencies reproducibly using npm ci.
+- Run regression tests and TypeScript checking before deployment.
+- Build and deploy the dist directory.
+- Ensure Vite asset paths work when hosted under the GitHub repository URL.
+- Provide exact terminal commands for creating and connecting the remote GitHub repository.
+- Explain any required GitHub Pages account settings.
+- Append this prompt to PROMPTS.md.
+
+Do not modify gameplay mechanics, perform additional bug audits or introduce unnecessary dependencies.
+
+
+
+Do not claim deployment success before the live website has been verified.
+
+
+
+Do not commit or push automatically.
+
+
+
+Keep the completion report concise.
