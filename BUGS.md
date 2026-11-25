@@ -222,3 +222,25 @@ This is not proof that unlisted code is bug-free. Architectural concerns such as
 ## Follow-up boundary
 
 No fixes, refactoring, gameplay changes, save changes or browser-confirmation claims are included. All suggested browser/fixture reproductions remain future work; source-confirmed does not mean browser-confirmed. Resolve design intent for BUG-015 before treating its presentation as definitively incorrect.
+
+## Part 2 migration location map
+
+All existing entries remain unresolved with their existing verification status. Their HTML line references identify the original baseline (`git show af3e29c:index.html`). Current code is in the modules below; search the same function names for exact current locations. Extraction and typing encountered no additional confirmed functional bug and did not repeat the audit.
+
+| IDs | Current source |
+| --- | --- |
+| 001 | `src/game.ts`, `src/core/time-scale.ts` |
+| 002 | `src/ui/ui.ts`, `src/game.ts` |
+| 003 | `src/gameplay/player.ts`, `src/graphics/camera.ts`, `src/core/input.ts` |
+| 004 | `src/physics/navigation.ts`, `src/levels/levels.ts` |
+| 005 | `src/levels/levels.ts`, `src/gameplay/world.ts`, `src/gameplay/player.ts`, `src/physics/collision.ts` |
+| 006 | `src/gameplay/enemies.ts`, `src/gameplay/world.ts` |
+| 007–008, 010, 012, 019 | `src/gameplay/world.ts` |
+| 009 | `src/physics/collision.ts`, `src/gameplay/world.ts` |
+| 011 | `src/gameplay/enemies.ts` |
+| 013 | `src/core/input.ts`, `src/game.ts` |
+| 014 | `src/graphics/renderer.ts`, `src/shaders/outline.wgsl` |
+| 015 | `src/game.ts`, `src/graphics/renderer.ts`, `src/shaders/final.wgsl` |
+| 016 | `src/ui/ui.ts`, `src/graphics/viewmodel.ts` |
+| 017 | `src/gameplay/replay.ts` |
+| 018 | `src/game.ts`, `src/graphics/viewmodel.ts` |
